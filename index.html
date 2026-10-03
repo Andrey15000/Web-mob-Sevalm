@@ -80,7 +80,7 @@
       .threeLayer,.wireCanvas{inset:0;overflow:hidden}
       .threeHint{left:8px;top:8px;right:8px;max-width:none;padding:8px 9px;font-size:11px}
       .wireLegend{display:none}.slice-note{display:none}.nodeInfo{display:none}
-      .mode-standard .threeHint,.mode-simple .threeHint{display:none}
+      
       .gauge{position:static;margin-top:10px;grid-template-columns:1fr 1fr}
       .gauge div{font-size:11px;padding:8px}.tag{font-size:10px;padding:6px 8px}
       .threeLabel{font-size:10px!important;padding:4px 6px!important}
@@ -128,10 +128,10 @@
             <label><input type="checkbox" id="showMaterial" checked> материал</label>
           </div>
           <div class="view-tools">
-            <label>поворот X <input type="range" id="rotX" min="25" max="78" value="62"></label>
-            <label>поворот Y <input type="range" id="rotY" min="-70" max="45" value="-28"></label>
-            <label>поворот Z <input type="range" id="rotZ" min="-45" max="45" value="-4"></label>
-            <label>масштаб <input type="range" id="zoom3d" min="70" max="150" value="100"></label>
+            <label>поворот X <input type="range" id="rotX" min="-180" max="180" value="62"></label>
+            <label>поворот Y <input type="range" id="rotY" min="-180" max="180" value="-28"></label>
+            <label>поворот Z <input type="range" id="rotZ" min="-180" max="180" value="-4"></label>
+            <label>масштаб <input type="range" id="zoom3d" min="50" max="220" value="100"></label>
             <button class="modeBtn on" data-mode="real" type="button">Объёмные узлы</button>
             <button class="modeBtn" data-mode="standard" type="button">Стандартная</button>
             <button class="modeBtn" data-mode="simple" type="button">Упрощённая</button>
@@ -228,7 +228,7 @@
         <tr><td>Вода в кеке / продукте</td><td>${fmt(r.Win,1)} / ${fmt(r.Wout,1)} кг/ч</td></tr><tr><td>Испаряемая влага</td><td><span class="pill">${fmt(r.W,1)} кг/ч</span></td></tr>
         <tr><td>Годовой выпуск продукта</td><td>${fmt(r.productT,0)} т/год</td></tr><tr><td>Выручка при полной загрузке</td><td>${fmt(r.revenueFull,1)} млн ₽/год</td></tr>
         <tr><td>OPEX при полной загрузке</td><td>${fmt(r.opexFull,1)} млн ₽/год</td></tr><tr><td>EBITDA при полной загрузке</td><td>${fmt(r.ebitdaFull,1)} млн ₽/год</td></tr>`;
-      updateViz(r); drawWire3D(r); if(window.updateReal3D) window.updateReal3D(p,r); renderAdvice(r);
+      updateViz(r); drawWire3D(r); if(window.updateReal3D&&vizMode==='real') window.updateReal3D(p,r); renderAdvice(r);
       drawCash(r.cash); drawSens();
       document.getElementById('compare').innerHTML=`<tr><th>Вариант</th><th>Производительность</th><th>Риск</th><th>Вывод</th></tr>
         <tr><td>ПСК 1600/12000</td><td>≈0,12 т/ч</td><td>мало поверхности теплообмена</td><td class="bad">не рекомендуется</td></tr>
@@ -283,23 +283,23 @@
       const viz=document.getElementById('viz'), rx=document.getElementById('rotX'), ry=document.getElementById('rotY'), rz=document.getElementById('rotZ'), zoom=document.getElementById('zoom3d');
       const sync=()=>{viz.style.setProperty('--rx',rx.value+'deg'); viz.style.setProperty('--ry',ry.value+'deg'); drawWire3D(calc())};
       rx.oninput=sync; ry.oninput=sync; rz.oninput=sync; zoom.oninput=sync; sync();
-      document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{vizMode=b.dataset.mode; viz.classList.remove('mode-real','mode-standard','mode-simple'); viz.classList.add('mode-'+vizMode); document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('on',x===b)); drawWire3D(calc()); if(window.updateReal3D) window.updateReal3D(p,calc())});
+      document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{vizMode=b.dataset.mode; viz.classList.remove('mode-real','mode-standard','mode-simple'); viz.classList.add('mode-'+vizMode); document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('on',x===b)); document.getElementById('threeHint').innerHTML=vizMode==='real'?'3D-модель: 1 палец — ракурс, 2 пальца — масштаб. ПК: мышь — поворот, колесо — масштаб.':'Схема: 1 палец — ракурс, 2 пальца — масштаб. ПК: мышь — поворот, колесо — масштаб.'; drawWire3D(calc()); if(window.updateReal3D&&vizMode==='real') window.updateReal3D(p,calc())});
       let drag=false,lastX=0,lastY=0,lastPinch=0;
-      const useFallbackControls=e=>vizMode!=='real' || e.target.closest('.wireCanvas');
+      const useFallbackControls=e=>vizMode!=='real';
       const activeTouches=new Map();
       const pinchDistance=()=>{const pts=[...activeTouches.values()]; if(pts.length<2)return 0; return Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y)};
-      viz.addEventListener('pointerdown',e=>{if(!useFallbackControls(e))return; if(e.pointerType==='touch')activeTouches.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(activeTouches.size>=2){lastPinch=pinchDistance();drag=false}else{drag=true;lastX=e.clientX;lastY=e.clientY} viz.setPointerCapture(e.pointerId)});
-      viz.addEventListener('pointermove',e=>{if(vizMode==='real')return; if(e.pointerType==='touch'&&activeTouches.has(e.pointerId))activeTouches.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(activeTouches.size>=2){const d=pinchDistance(); if(lastPinch){zoom.value=clamp(+zoom.value+(d-lastPinch)*.25,70,150); sync()} lastPinch=d; return} if(!drag)return; const dx=e.clientX-lastX,dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; ry.value=clamp(+ry.value+dx*.35,-70,45); rx.value=clamp(+rx.value-dy*.35,25,78); sync()});
+      viz.addEventListener('pointerdown',e=>{if(!useFallbackControls(e))return; e.preventDefault(); if(e.pointerType==='touch')activeTouches.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(activeTouches.size>=2){lastPinch=pinchDistance();drag=false}else{drag=true;lastX=e.clientX;lastY=e.clientY} viz.setPointerCapture(e.pointerId)});
+      viz.addEventListener('pointermove',e=>{if(!useFallbackControls(e))return; e.preventDefault(); if(e.pointerType==='touch'&&activeTouches.has(e.pointerId))activeTouches.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(activeTouches.size>=2){const d=pinchDistance(); if(lastPinch){zoom.value=clamp(+zoom.value+(d-lastPinch)*.35,50,220); sync()} lastPinch=d; return} if(!drag)return; const dx=e.clientX-lastX,dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; ry.value=(((+ry.value-dx*.35+180)%360+360)%360)-180; rx.value=(((+rx.value+dy*.35+180)%360+360)%360)-180; sync()});
       const endTouch=e=>{activeTouches.delete(e.pointerId); if(activeTouches.size<2)lastPinch=0; drag=false};
       viz.addEventListener('pointerup',endTouch); viz.addEventListener('pointercancel',endTouch);
-      viz.addEventListener('wheel',e=>{if(vizMode==='real')return; e.preventDefault(); zoom.value=clamp(+zoom.value-(e.deltaY>0?5:-5),70,150); sync()},{passive:false});
+      viz.addEventListener('wheel',e=>{if(vizMode==='real')return; e.preventDefault(); zoom.value=clamp(+zoom.value-(e.deltaY>0?8:-8),50,220); sync()},{passive:false});
       const map=[['showCut','hide-cut'],['showAir','hide-air'],['showGas','hide-gas'],['showMaterial','hide-material']];
       map.forEach(([id,cls])=>document.getElementById(id).onchange=e=>{viz.classList.toggle(cls,!e.target.checked); drawWire3D(calc())});
     }
     function drawWire3D(r){
       const c=document.getElementById('wire3d'), ctx=c.getContext('2d'), box=c.getBoundingClientRect(), dpr=devicePixelRatio||1;
       c.width=box.width*dpr; c.height=box.height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
-      const W=box.width,H=box.height, rx=(+document.getElementById('rotX').value||62)*Math.PI/180, ry=(+document.getElementById('rotY').value||-28)*Math.PI/180, rz=(+document.getElementById('rotZ').value||-4)*Math.PI/180, zoom=(+document.getElementById('zoom3d').value||100)/100;
+      const W=box.width,H=box.height, rx=Number(document.getElementById('rotX').value)*Math.PI/180, ry=Number(document.getElementById('rotY').value)*Math.PI/180, rz=Number(document.getElementById('rotZ').value)*Math.PI/180, zoom=Number(document.getElementById('zoom3d').value)/100;
       const show={cut:document.getElementById('showCut').checked,air:document.getElementById('showAir').checked,gas:document.getElementById('showGas').checked,mat:document.getElementById('showMaterial').checked};
       ctx.clearRect(0,0,W,H); grid();
       function rot(p){let [x,y,z]=p, cy=Math.cos(ry),sy=Math.sin(ry), cx=Math.cos(rx),sx=Math.sin(rx), cz=Math.cos(rz),sz=Math.sin(rz); let x1=x*cy+z*sy,z1=-x*sy+z*cy,y1=y; let y2=y1*cx-z1*sx,z2=y1*sx+z1*cx; let x3=x1*cz-y2*sz,y3=x1*sz+y2*cz; return [x3,y3,z2]}
